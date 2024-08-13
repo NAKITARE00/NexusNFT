@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
@@ -18,7 +18,7 @@ contract NexusNFT is ERC721URIStorage, Ownable {
     mapping(uint256 => RealEstateAsset) public realEstateAssets;
 
     constructor() ERC721("NexusNFT", "NXNFT") Ownable(msg.sender) {
-        _tokenIdCounter = 1;  // Start token IDs from 1
+        _tokenIdCounter = 1;  
     }
 
     event RealEstateTokenized(
@@ -79,6 +79,16 @@ contract NexusNFT is ERC721URIStorage, Ownable {
         return realEstateAssets[tokenId].ownershipShares[owner];
     }
 
+    // Function to get all real estate assets listed
+    function getAllTokens() public view returns (uint256[] memory) {
+        uint256 totalTokens = _tokenIdCounter - 1;
+        uint256[] memory tokenList = new uint256[](totalTokens);
+        for (uint256 i = 1; i <= totalTokens; i++) {
+            tokenList[i - 1] = i;
+        }
+        return tokenList;
+    }
+
     // Function to get details of a real estate asset
     function getRealEstateAssetDetails(uint256 tokenId)
         public
@@ -92,6 +102,20 @@ contract NexusNFT is ERC721URIStorage, Ownable {
         require(tokenExists(tokenId), "Token does not exist");
         RealEstateAsset storage asset = realEstateAssets[tokenId];
         return (asset.propertyAddress, asset.valuation, asset.fractionalShares);
+    }
+
+    // Function to initiate purchase of a real estate asset
+    function purchaseRealEstate(uint256 tokenId, uint256 shares) public payable {
+        require(tokenExists(tokenId), "Token does not exist");
+        require(realEstateAssets[tokenId].ownershipShares[msg.sender] < shares, "Already owns shares");
+
+        uint256 sharePrice = realEstateAssets[tokenId].valuation / realEstateAssets[tokenId].fractionalShares;
+        uint256 purchasePrice = sharePrice * shares;
+        require(msg.value >= purchasePrice, "Insufficient funds");
+
+        realEstateAssets[tokenId].ownershipShares[msg.sender] += shares;
+
+        emit OwnershipTransferred(tokenId, address(0), msg.sender, shares);
     }
 
     // Integration point for DeFi protocols (e.g., staking, borrowing)
